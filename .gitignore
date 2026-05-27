@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+Package.resolved
+Buttons.app/
+*.xcodeproj/
+*.dmg
+.dmg-staging/
+.DS_Store
