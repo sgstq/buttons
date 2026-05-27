@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump (used when no tag is pushed)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Skip PR closures that weren't merged
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && 'main' || github.ref }}
+          fetch-depth: 0
+
+      - name: Determine release version
+        id: ver
+        run: |
+          set -euo pipefail
+          EVENT="${{ github.event_name }}"
+
+          if [[ "$EVENT" == "push" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+            SHOULD="true"
+            REASON="tag push"
+          else
+            if [[ "$EVENT" == "workflow_dispatch" ]]; then
+              KIND="${{ inputs.bump }}"
+              REASON="manual dispatch ($KIND)"
+            else
+              LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+              if   echo "$LABELS" | grep -q '"bump:major"'; then KIND="major"
+              elif echo "$LABELS" | grep -q '"bump:minor"'; then KIND="minor"
+              elif echo "$LABELS" | grep -q '"bump:skip"';  then KIND="skip"
+              else KIND="patch"
+              fi
+              REASON="PR #${{ github.event.pull_request.number }} merged ($KIND)"
+            fi
+
+            if [[ "$KIND" == "skip" ]]; then
+              SHOULD="false"
+              VERSION=""
+              TAG=""
+            else
+              LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+              CURRENT="${LATEST#v}"
+              [[ -z "$CURRENT" ]] && CURRENT="0.0.0"
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+              case "$KIND" in
+                major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+                minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+                patch) PATCH=$((PATCH+1)) ;;
+              esac
+              VERSION="$MAJOR.$MINOR.$PATCH"
+              TAG="v$VERSION"
+              SHOULD="true"
+            fi
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "should=$SHOULD"   >> "$GITHUB_OUTPUT"
+          echo ""
+          echo "▶ $REASON"
+          echo "▶ next: tag=$TAG version=$VERSION should_release=$SHOULD"
+
+      - name: Inject version into Info.plist
+        if: steps.ver.outputs.should == 'true'
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION"            Resources/Info.plist
+
+      - name: Import Developer ID certificate
+        if: steps.ver.outputs.should == 'true' && env.CERT_P12 != ''
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_APP_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PASS="$(openssl rand -base64 32)"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+
+          echo "$CERT_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+          rm -f "$CERT_PATH"
+
+      - name: Store notarytool credentials
+        if: steps.ver.outputs.should == 'true' && env.APPLE_ID != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PWD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "ci" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PWD"
+
+      - name: Build & package
+        if: steps.ver.outputs.should == 'true'
+        env:
+          DEVELOPER_ID_APP: ${{ secrets.DEVELOPER_ID_APP_IDENTITY }}
+          NOTARY_PROFILE: ${{ secrets.APPLE_ID != '' && 'ci' || '' }}
+        run: ./release.sh
+
+      - name: Create GitHub Release
+        if: steps.ver.outputs.should == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          files: Buttons.dmg
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Skip notice
+        if: steps.ver.outputs.should != 'true'
+        run: echo "Skipping release (bump:skip or non-merge event)."
