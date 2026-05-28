@@ -29,6 +29,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem.menu = menu
     }
 
+    func setVisible(_ visible: Bool) {
+        statusItem.isVisible = visible
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 

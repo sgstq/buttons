@@ -5,20 +5,24 @@ import SwiftUI
 final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let store: TriggerStore
     private let engine: TriggerEngine
+    private let settings: AppSettings
     private let permissionsBox: PermissionsCoordinatorBox
 
     init(
         store: TriggerStore,
         engine: TriggerEngine,
+        settings: AppSettings,
         permissionsBox: PermissionsCoordinatorBox
     ) {
         self.store = store
         self.engine = engine
+        self.settings = settings
         self.permissionsBox = permissionsBox
 
         let root = PreferencesScene()
             .environmentObject(store)
             .environmentObject(engine)
+            .environmentObject(settings)
             .environmentObject(permissionsBox)
 
         let hosting = NSHostingController(rootView: root)
