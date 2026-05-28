@@ -167,7 +167,9 @@ struct TriggerEditorView: View {
         switch t.action {
         case .sequence(let steps):
             isChainAction = true
-            let drafts = steps.compactMap { StepDraft.draft(from: $0) }
+            let drafts = steps
+                .flatMap { $0.flattenedSequenceSteps() }
+                .compactMap { StepDraft.draft(from: $0) }
             chainSteps = drafts.isEmpty ? [StepDraft(kind: .keystroke)] : drafts
         case .delay:
             // Standalone delay is degenerate — treat as a one-step chain so the user can edit it.
@@ -227,6 +229,17 @@ struct TriggerEditorView: View {
 }
 
 // MARK: - Editable step
+
+private extension Action {
+    func flattenedSequenceSteps() -> [Action] {
+        switch self {
+        case .sequence(let actions):
+            return actions.flatMap { $0.flattenedSequenceSteps() }
+        default:
+            return [self]
+        }
+    }
+}
 
 /// One row of an action being edited. Doubles as a single-action editor (chains disabled)
 /// and as one step inside a chain (chains allow `.delay`).
