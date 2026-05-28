@@ -323,7 +323,12 @@ extension StepDraft {
             return trimmed.isEmpty ? nil : .launchApp(bundleID: trimmed)
         case .openURL:
             let trimmed = urlString.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty, let url = URL(string: trimmed) else { return nil }
+            guard
+                !trimmed.isEmpty,
+                let url = URL(string: trimmed),
+                let scheme = url.scheme,
+                !scheme.isEmpty
+            else { return nil }
             return .openURL(url)
         case .delay:
             return .delay(seconds: max(0, delaySeconds))
