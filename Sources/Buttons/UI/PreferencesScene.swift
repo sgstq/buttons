@@ -36,8 +36,11 @@ struct PreferencesScene: View {
             .frame(minWidth: 320)
         } detail: {
             if let id = selection, let trigger = store.triggers.first(where: { $0.id == id }) {
-                TriggerDetailView(trigger: trigger)
-                    .padding()
+                TriggerDetailView(trigger: trigger, onEdit: {
+                    editing = trigger
+                    editorPresented = true
+                })
+                .padding()
             } else {
                 ContentUnavailableView(
                     "Select a trigger",
