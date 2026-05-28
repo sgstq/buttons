@@ -61,23 +61,23 @@ struct TriggerEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        ForEach($chainSteps) { $step in
+                        ForEach($chainSteps) { stepBinding in
                             ChainStepRow(
-                                step: $step,
-                                index: chainSteps.firstIndex(where: { $0.id == step.id }) ?? 0,
+                                step: stepBinding,
+                                index: chainSteps.firstIndex(where: { $0.id == stepBinding.wrappedValue.id }) ?? 0,
                                 stepCount: chainSteps.count,
                                 onMoveUp: {
-                                    if let i = chainSteps.firstIndex(where: { $0.id == step.id }) {
+                                    if let i = chainSteps.firstIndex(where: { $0.id == stepBinding.wrappedValue.id }) {
                                         moveStep(i, by: -1)
                                     }
                                 },
                                 onMoveDown: {
-                                    if let i = chainSteps.firstIndex(where: { $0.id == step.id }) {
+                                    if let i = chainSteps.firstIndex(where: { $0.id == stepBinding.wrappedValue.id }) {
                                         moveStep(i, by: 1)
                                     }
                                 },
                                 onDelete: {
-                                    chainSteps.removeAll { $0.id == step.id }
+                                    chainSteps.removeAll { $0.id == stepBinding.wrappedValue.id }
                                 }
                             )
                         }
@@ -167,15 +167,15 @@ struct TriggerEditorView: View {
         switch t.action {
         case .sequence(let steps):
             isChainAction = true
-            let drafts = steps.compactMap { StepDraft(from: $0) }
+            let drafts = steps.compactMap { StepDraft.draft(from: $0) }
             chainSteps = drafts.isEmpty ? [StepDraft(kind: .keystroke)] : drafts
         case .delay:
             // Standalone delay is degenerate — treat as a one-step chain so the user can edit it.
             isChainAction = true
-            chainSteps = [StepDraft(from: t.action) ?? StepDraft(kind: .delay)]
+            chainSteps = [StepDraft.draft(from: t.action) ?? StepDraft(kind: .delay)]
         default:
             isChainAction = false
-            singleStep = StepDraft(from: t.action) ?? StepDraft(kind: .keystroke)
+            singleStep = StepDraft.draft(from: t.action) ?? StepDraft(kind: .keystroke)
         }
 
         switch t.scope {
@@ -268,30 +268,32 @@ enum StepKind: String, CaseIterable, Identifiable {
 }
 
 extension StepDraft {
-    init?(from action: Action) {
+    static func draft(from action: Action) -> StepDraft? {
+        var draft: StepDraft
         switch action {
         case .sendKeystroke(let kc, let m):
-            self = StepDraft(kind: .keystroke)
-            self.hotkey = Hotkey(keyCode: kc, modifiers: m)
+            draft = StepDraft(kind: .keystroke)
+            draft.hotkey = Hotkey(keyCode: kc, modifiers: m)
         case .sendText(let s):
-            self = StepDraft(kind: .text)
-            self.text = s
+            draft = StepDraft(kind: .text)
+            draft.text = s
         case .sendMouseClick(let b):
-            self = StepDraft(kind: .click)
-            self.mouseButton = b
+            draft = StepDraft(kind: .click)
+            draft.mouseButton = b
         case .launchApp(let bid):
-            self = StepDraft(kind: .launchApp)
-            self.bundleID = bid
+            draft = StepDraft(kind: .launchApp)
+            draft.bundleID = bid
         case .openURL(let url):
-            self = StepDraft(kind: .openURL)
-            self.urlString = url.absoluteString
+            draft = StepDraft(kind: .openURL)
+            draft.urlString = url.absoluteString
         case .delay(let s):
-            self = StepDraft(kind: .delay)
-            self.delaySeconds = s
+            draft = StepDraft(kind: .delay)
+            draft.delaySeconds = s
         case .sequence:
             // Nested sequences aren't supported in the editor.
             return nil
         }
+        return draft
     }
 
     func toAction() -> Action? {
