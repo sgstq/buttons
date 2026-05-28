@@ -15,6 +15,8 @@ struct TriggerListView: View {
                 ForEach(store.triggers) { trigger in
                     TriggerRow(trigger: trigger)
                         .tag(trigger.id)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) { onEdit(trigger) }
                         .contextMenu {
                             Button("Edit…") { onEdit(trigger) }
                             Divider()

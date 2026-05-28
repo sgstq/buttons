@@ -2,11 +2,20 @@ import SwiftUI
 
 struct TriggerDetailView: View {
     let trigger: Trigger
+    var onEdit: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(trigger.name.isEmpty ? "(unnamed)" : trigger.name)
-                .font(.title2)
+            HStack(alignment: .firstTextBaseline) {
+                Text(trigger.name.isEmpty ? "(unnamed)" : trigger.name)
+                    .font(.title2)
+                Spacer()
+                Button {
+                    onEdit()
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
 
             GroupBox("When") {
                 Text(trigger.input.summary)

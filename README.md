@@ -21,9 +21,11 @@ Buttons binds inputs to actions, scoped per app:
 
 - **Inputs** — global keyboard shortcuts (Carbon Hotkey API), and trackpad
   multi-finger gestures (tap or directional swipe; 2–5 fingers).
-- **Outputs** — send a keystroke, send text, or post a mouse click
-  (left / middle / right). Chained actions with optional delays between
-  steps are supported as read-only.
+- **Outputs** — send a keystroke, send text, post a mouse click
+  (left / middle / right), launch an app, or open a URL. Chained actions
+  with optional delays between steps are supported: import a chain from
+  BetterTouchTool and you can then edit, reorder, or extend its steps in
+  the native editor (chains can't be created from scratch yet).
 - **Scope** — each trigger can be limited to a specific application or fire
   globally.
 
@@ -32,7 +34,9 @@ it keeps running in the background regardless.
 
 ### What's not (yet) supported
 
-- Editing chained / multi-step triggers in the UI (read-only).
+- Creating a brand-new multi-step chain in the native editor (you can edit
+  imported BTT chains, but to start a new chain you currently have to
+  import one from BetterTouchTool).
 - Window snapping, Touch Bar, scripting actions, drawn mouse gestures.
 - Apple Magic Mouse single-touch surface (uses the same private framework,
   but gesture classification is currently trackpad-tuned).
