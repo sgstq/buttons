@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PreferencesScene: View {
     @EnvironmentObject var store: TriggerStore
     @EnvironmentObject var engine: TriggerEngine
+    @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var permissions: PermissionsCoordinatorBox
 
     @State private var selection: Trigger.ID?
@@ -76,6 +77,16 @@ struct PreferencesScene: View {
                           systemImage: engine.isPaused ? "pause.circle" : "play.circle")
                 }
                 .toggleStyle(.switch)
+            }
+            ToolbarItem {
+                Menu {
+                    Toggle("Show menu bar icon", isOn: $settings.menuBarVisible)
+                    if !settings.menuBarVisible {
+                        Text("Re-launch Buttons to reopen Preferences when the icon is hidden.")
+                    }
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
             }
         }
         .sheet(isPresented: $editorPresented) {

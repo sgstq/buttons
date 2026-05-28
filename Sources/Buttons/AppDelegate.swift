@@ -1,9 +1,11 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store: TriggerStore
+    let settings: AppSettings
     let permissions: PermissionsCoordinator
     let permissionsBox: PermissionsCoordinatorBox
     let context: ContextProvider
@@ -12,15 +14,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var menuBar: MenuBarController?
     private(set) var preferencesController: PreferencesWindowController?
+    private var cancellables: Set<AnyCancellable> = []
 
     override init() {
         let store = TriggerStore()
+        let settings = AppSettings()
         let permissions = PermissionsCoordinator()
         let context = ContextProvider()
         let dispatcher = ActionDispatcher()
         let engine = TriggerEngine(store: store, context: context, dispatcher: dispatcher)
 
         self.store = store
+        self.settings = settings
         self.permissions = permissions
         self.permissionsBox = PermissionsCoordinatorBox(coordinator: permissions)
         self.context = context
@@ -38,15 +43,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let prefs = PreferencesWindowController(
             store: store,
             engine: engine,
+            settings: settings,
             permissionsBox: permissionsBox
         )
         preferencesController = prefs
 
-        menuBar = MenuBarController(
+        let menuBar = MenuBarController(
             engine: engine,
             permissions: permissions,
             onShowPreferences: { [weak self] in self?.showPreferences() }
         )
+        menuBar.setVisible(settings.menuBarVisible)
+        self.menuBar = menuBar
+
+        settings.$menuBarVisible
+            .dropFirst()
+            .sink { [weak self] visible in
+                self?.menuBar?.setVisible(visible)
+            }
+            .store(in: &cancellables)
 
         // Trigger the one-time system Accessibility prompt so the user knows it's needed.
         if !permissions.accessibilityGranted() {
