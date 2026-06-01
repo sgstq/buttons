@@ -83,6 +83,7 @@ struct PreferencesScene: View {
             }
             ToolbarItem {
                 Menu {
+                    Toggle("Launch at login", isOn: $settings.launchAtLogin)
                     Toggle("Show menu bar icon", isOn: $settings.menuBarVisible)
                     if !settings.menuBarVisible {
                         Text("Re-launch Buttons to reopen Preferences when the icon is hidden.")

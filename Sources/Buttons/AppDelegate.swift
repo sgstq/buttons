@@ -81,6 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.permissionsBox.refresh()
+                self?.settings.refreshLaunchAtLogin()
             }
         }
     }

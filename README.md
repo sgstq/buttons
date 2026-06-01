@@ -45,7 +45,7 @@ it keeps running in the background regardless.
 
 - **Menu-bar `⌘` icon** → Pause / Resume triggers, open Preferences, Quit.
 - **Preferences window** → trigger list, add/edit, per-app scope, and
-  general settings (including hiding the menu-bar icon). Re-launch
+  general settings (launch at login, hiding the menu-bar icon). Re-launch
   Buttons.app to reopen Preferences when the icon is hidden.
 - On first launch, grant **Accessibility** permission when prompted
   (System Settings → Privacy & Security → Accessibility). This is what
